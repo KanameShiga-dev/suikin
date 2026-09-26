@@ -331,6 +331,7 @@ let W,H,DPR,cx,cy,Rw,Rg,Rout;
 function css(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
 
 function layout(){
+  if(!innerWidth||!innerHeight) return;         // 表示前（幅・高さ0）は次の resize を待つ
   DPR=Math.min(window.devicePixelRatio||1,2);
   W=innerWidth; H=innerHeight;
   cv.width=rimCv.width=W*DPR; cv.height=rimCv.height=H*DPR;
@@ -531,6 +532,7 @@ function drawRim(){
 const sparks=[];
 let lastDrop=0, running=false;
 function draw(){
+  if(!W) return;
   ctx.setTransform(1,0,0,1,0,0);
   ctx.clearRect(0,0,cv.width,cv.height);
   ctx.setTransform(DPR,0,0,DPR,0,0);
@@ -690,6 +692,7 @@ function addRing(x,y,s,f){
 /* ---------- 雫を落とす ---------- */
 let touched=false;
 function dropAt(px,py,s,fOverride){
+  if(!W) return false;
   const dx=px-cx, dy=py-cy, r=Math.hypot(dx,dy)/Rw;
   if(r>=.985) return false;
   const f=fOverride||freqAt(r);
@@ -851,7 +854,16 @@ document.getElementById('echo').addEventListener('click',e=>{
 addEventListener('resize',layout);
 if(document.fonts&&document.fonts.ready) document.fonts.ready.then(layout);
 matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',layout);
-document.addEventListener('visibilitychange',()=>{ if(document.hidden && ac) ac.suspend(); else if(ac) ac.resume(); });
+// 裏に回ったら雨を止め、曲も止める（音声が止まっている間に音が溜まり、復帰時にまとめて鳴るのを防ぐ）
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){
+    clearTimeout(rainTimer); stopPlayer();
+    if(ac) ac.suspend();
+  }else{
+    if(ac) ac.resume();
+    if(rainOn){ clearTimeout(rainTimer); wake(); rain(); }
+  }
+});
 layout();
 })();
 </script>
